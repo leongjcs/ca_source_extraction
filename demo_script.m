@@ -9,7 +9,7 @@ num2read=2000;					% user input: how many frames to read   (optional, default un
 
 Y = bigread2(nam,sframe,num2read);
 Y = Y - min(Y(:)); 
-if ~isa(Y,'double');    Y = double(Y);  end         % convert to double
+if ~isa(Y,'single');    Y = single(Y);  end         % convert to single
 
 [d1,d2,T] = size(Y);                                % dimensions of dataset
 d = d1*d2;                                          % total number of pixels
@@ -36,7 +36,7 @@ options = CNMFSetParms(...
 
 %% fast initialization of spatial components using greedyROI and HALS
 
-[Ain,Cin,bin,fin,center] = initialize_components(Y,K,tau,options);  % initialize
+[Ain,Cin,bin,fin,center] = initialize_components(Y,K,tau,options,P);  % initialize
 
 % display centers of found components
 Cn =  reshape(P.sn,d1,d2); %correlation_image(Y); %max(Y,[],3); %std(Y,[],3); % image statistic (only for display purposes)
@@ -93,7 +93,7 @@ P.p = p;    % restore AR value
 
 [A_or,C_or,S_or,P] = order_ROIs(A2,C2,S2,P); % order components
 K_m = size(C_or,1);
-[C_df,~,S_df] = extract_DF_F(Yr,[A_or,b2],[C_or;f2],S_or,K_m+1); % extract DF/F values (optional)
+[C_df,~] = extract_DF_F(Yr,[A_or,b2],[C_or;f2],K_m+1); % extract DF/F values (optional)
 
 contour_threshold = 0.95;                       % amount of energy used for each component to construct contour plot
 figure;
