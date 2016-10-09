@@ -2,6 +2,7 @@ function [A,C,b,f] = HALS_initialization(Y,K,options)
 
 defoptions = CNMFSetParms;
 if ~isfield(options,'max_iter_hals_in') || isempty(options.max_iter_hals_in); options.max_iter_hals_in = defoptions.max_iter_hals_in; end
+if ~isfield(options,'rem_prct') || isempty(options.rem_prct); options.rem_prct = defoptions.rem_prct; end
 
 init_hals_method = 'random';
 
@@ -16,12 +17,12 @@ T = sizY(end);        % # of timesteps
 dx = sizY(1:dimY);    % # of voxels in each axis
 d = prod(dx);         % total # of voxels  
 
-med = median(Y,ndims(Y));
+med = prctile(Y,options.rem_prct,ndims(Y));
 Y = bsxfun(@minus, Y, med);
 if strcmpi(init_hals_method,'random');
     A = rand(d,K);
     Y = reshape(Y,d,T);
-    C = max(A\Y,0);
+    C = HALS_temporal(Y,A,rand(K,T),10);
 elseif strcmpi(init_hals_method,'cor_im');
     sk = max(round(T/1000),1);
     Cn = correlation_image(Y(:,:,1:sk:T));

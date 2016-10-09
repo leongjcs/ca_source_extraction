@@ -104,16 +104,19 @@ if isempty(fin) || nargin < 5   % temporal background missing
         fin = fin/norm(fin);
         b = max(Y*fin',0);
     else
-        fin = max(b(bk_pix)'*Y(bk_pix,:),0)/norm(b(bk_pix))^2;
+        fin = max(b(bk_pix,:)'*Y(bk_pix,:),0)/(b(bk_pix,:)'*b(bk_pix,:));
     end
 end
 
 % construct product A'*Y
 step = 5e3;
 if memmaped
-    AY = zeros(length(nA),T);
+    AY = zeros(size(A,2),T);
+    bY = zeros(size(b,2),T);
     for i = 1:step:d
-        AY = AY + A(i:min(i+step-1,d),:)'*double(Y.Yr(i:min(i+step-1,d),:));
+        Y_temp = double(Y.Yr(i:min(i+step-1,d),:));
+        AY = AY + A(i:min(i+step-1,d),:)'*Y_temp;
+        bY = bY + b(i:min(i+step-1,d),:)'*Y_temp;
     end
 else
     if issparse(A) && isa(Y,'single')  
@@ -125,6 +128,7 @@ else
     else
         AY = A'*Y;
     end
+    bY = b'*Y;
 end  
 
 if isempty(Cin) || nargin < 4    % estimate temporal components if missing    
@@ -164,7 +168,7 @@ if strcmpi(method,'noise_constrained')
 else
     nA = sum(A.^2);
     AA = spdiags(nA(:),0,length(nA),length(nA))\(A'*A);
-    AY = [AY;b'*Y];
+    AY = [AY;bY];
     AY = double(bsxfun(@times,AY,1./nA(:)));
 
     if strcmpi(method,'constrained_foopsi') || strcmpi(method,'MCEM_foopsi')
@@ -177,13 +181,15 @@ else
         params.B = 300;
         params.Nsamples = 400;
         params.p = P.p;
+        params.bas_nonneg = options.bas_nonneg;
     else
         params = [];
     end
 end
 p = P.p;
+options.p = P.p;
+C = double(C);
 if options.temporal_parallel
-    C = double(C);
     for iter = 1:ITER
         [O,lo] = update_order(A(:,1:K));
         for jo = 1:length(O)
