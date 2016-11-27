@@ -9,7 +9,7 @@ num2read=2000;					% user input: how many frames to read   (optional, default un
 
 Y = bigread2(nam,sframe,num2read);
 Y = Y - min(Y(:)); 
-if ~isa(Y,'single');    Y = single(Y);  end         % convert to single
+if ~isa(Y,'double');    Y = double(Y);  end         % convert to single
 
 [d1,d2,T] = size(Y);                                % dimensions of dataset
 d = d1*d2;                                          % total number of pixels
@@ -23,7 +23,7 @@ merge_thr = 0.8;                                  % merging threshold
 
 options = CNMFSetParms(...                      
     'd1',d1,'d2',d2,...                         % dimensions of datasets
-    'search_method','ellipse','dist',3,...      % search locations when updating spatial components
+    'search_method','dilate','dist',3,...       % search locations when updating spatial components
     'deconv_method','constrained_foopsi',...    % activity deconvolution method
     'temporal_iter',2,...                       % number of block-coordinate descent steps 
     'fudge_factor',0.98,...                     % bias correction for AR coefficients
@@ -39,7 +39,7 @@ options = CNMFSetParms(...
 [Ain,Cin,bin,fin,center] = initialize_components(Y,K,tau,options,P);  % initialize
 
 % display centers of found components
-Cn =  reshape(P.sn,d1,d2); %correlation_image(Y); %max(Y,[],3); %std(Y,[],3); % image statistic (only for display purposes)
+Cn =  correlation_image(Y); %reshape(P.sn,d1,d2);  %max(Y,[],3); %std(Y,[],3); % image statistic (only for display purposes)
 figure;imagesc(Cn);
     axis equal; axis tight; hold all;
     scatter(center(:,2),center(:,1),'mo');
@@ -54,15 +54,15 @@ end
     
 %% update spatial components
 Yr = reshape(Y,d,T);
-clear Y;
-[A,b,Cin] = update_spatial_components(Yr,Cin,fin,Ain,P,options);
+%clear Y;
+[A,b,Cin] = update_spatial_components(Yr,Cin,fin,[Ain,bin],P,options);
 
 %% update temporal components
 P.p = 0;    % set AR temporarily to zero for speed
-[C,f,P,S] = update_temporal_components(Yr,A,b,Cin,fin,P,options);
+[C,f,P,S,YrA] = update_temporal_components(Yr,A,b,Cin,fin,P,options);
 
 %% merge found components
-[Am,Cm,K_m,merged_ROIs,P,Sm] = merge_components(Yr,A,b,C,f,P,S,options);
+[Am,Cm,K_m,merged_ROIs,Pm,Sm] = merge_components(Yr,A,b,C,f,P,S,options);
 
 %%
 display_merging = 1; % flag for displaying merging example
@@ -85,20 +85,21 @@ if and(display_merging, ~isempty(merged_ROIs))
 end
 
 %% repeat
-P.p = p;    % restore AR value
-[A2,b2,Cm] = update_spatial_components(Yr,Cm,f,Am,P,options);
-[C2,f2,P,S2] = update_temporal_components(Yr,A2,b2,Cm,f,P,options);
+Pm.p = p;    % restore AR value
+[A2,b2,Cm] = update_spatial_components(Yr,Cm,f,[Am,b],Pm,options);
+[C2,f2,P2,S2,YrA2] = update_temporal_components(Yr,A2,b2,Cm,f,Pm,options);
 
 %% do some plotting
 
-[A_or,C_or,S_or,P] = order_ROIs(A2,C2,S2,P); % order components
+[A_or,C_or,S_or,P_or] = order_ROIs(A2,C2,S2,P2); % order components
 K_m = size(C_or,1);
-[C_df,~] = extract_DF_F(Yr,[A_or,b2],[C_or;f2],K_m+1); % extract DF/F values (optional)
+[C_df,~] = extract_DF_F(Yr,A_or,C_or,P_or,options); % extract DF/F values (optional)
 
 %contour_threshold = 0.95;                       % amount of energy used for each component to construct contour plot
 figure;
-[Coor,json_file] = plot_contours(A_or,reshape(P.sn,d1,d2),options,1); % contour plot of spatial footprints
+[Coor,json_file] = plot_contours(A_or,Cn,options,1); % contour plot of spatial footprints
 %savejson('jmesh',json_file,'filename');        % optional save json file with component coordinates (requires matlab json library)
+
 %% display components
 
 plot_components_GUI(Yr,A_or,C_or,b2,f2,Cn,options)
