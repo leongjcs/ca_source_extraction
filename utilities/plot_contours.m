@@ -1,4 +1,4 @@
-function [CC,jsf] = plot_contours(Aor,Cn,options,display_numbers,max_number,Coor, ln_wd, ind_show)
+function [CC,jsf,bwMaskStack] = plot_contours(Aor,Cn,options,display_numbers,max_number,Coor, ln_wd, ind_show)
 
 % save and plot the contour traces of the found spatial components against
 % a specified background image. The contour can be determined in two ways:
@@ -92,6 +92,19 @@ fontname = 'helvetica';
                 if ~isempty(ff)
                     CC{i} = contour(reshape(A_temp,d1,d2),[0,0]+A_temp(ind(ff)),'LineColor',cmap(i+size(Aor,2),:), 'linewidth', ln_wd);
                     fp = find(A_temp >= A_temp(ind(ff)));
+                    mask = zeros( d1, d2 );
+                    mask(fp)=1;
+                    bwMaskStack( :, :, i ) = mask;
+                    
+%                     figure;
+%                     subplot(1,2,1);
+%                     imagesc(bwMaskStack(:,:,i));
+%                     axis image;
+%                     subplot(1,2,2);
+%                     imagesc(reshape(A_temp,d1,d2));
+%                     axis image;
+%                     keyboard
+                    
                     [ii,jj] = ind2sub([d1,d2],fp);
                     CR{i,1} = [ii,jj]';
                     CR{i,2} = A_temp(fp)';
